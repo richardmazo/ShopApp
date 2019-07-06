@@ -1,41 +1,69 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
-using ShopAppWeb.Data;
-using ShopAppWeb.Data.Entities;
-
-public class SeedDb
+﻿namespace ShopAppWeb.Data
 {
-    private readonly DataContext context;
-    private Random random;
+    using Entities;
+    using Helpers;
+    using Microsoft.AspNetCore.Identity;
+    using System;
+    using System.Linq;
+    using System.Threading.Tasks;
 
-    public SeedDb(DataContext context)
+    public class SeedDb
     {
-        this.context = context;
-        this.random = new Random();
-    }
+        private readonly DataContext context;
+        private readonly Random random;
 
-    public async Task SeedAsync()
-    {
-        await this.context.Database.EnsureCreatedAsync();
-
-        if (!this.context.Products.Any())
+        public SeedDb(DataContext context, IUserHelper userHelper)
         {
-            this.AddProduct("iPhone X");
-            this.AddProduct("Magic Mouse");
-            this.AddProduct("iWatch Series 4");
-            await this.context.SaveChangesAsync();
+
+            this.context = context;
+            UserHelper = userHelper;
+            this.random = new Random();
         }
-    }
 
-    private void AddProduct(string name)
-    {
-        this.context.Products.Add(new Product
+        public IUserHelper UserHelper { get; }
+
+        public async Task SeedAsync()
         {
-            Name = name,
-            Price = this.random.Next(100),
-            IsAvailabe = true,
-            Stock = this.random.Next(100)
-        });
+            await this.context.Database.EnsureCreatedAsync();
+
+            var user = await this.UserHelper.GetUserByEmailAsync("richard.mazo.15.11@gmail.com");
+            if (user == null)
+            {
+                user = new User
+                {
+                    FirstName = "Richard",
+                    LastName = "Mazo",
+                    Email = "richard.mazo.15.11@gmail.com",
+                    UserName = "richard.mazo.15.11@gmail.com"
+                };
+
+                var result = await this.UserHelper.AddUserAsync(user, "123456");
+                if (result != IdentityResult.Success)
+                {
+                    throw new InvalidOperationException("Could not create the user in seeder");
+                }
+            }
+
+            if (!this.context.Products.Any())
+            {
+                this.AddProduct("iPhone X", user);
+                this.AddProduct("Magic Mouse", user);
+                this.AddProduct("iWatch Series 4", user);
+                await this.context.SaveChangesAsync();
+            }
+
+        }
+
+        private void AddProduct(string name, User user)
+        {
+            this.context.Products.Add(new Product
+            {
+                Name = name,
+                Price = this.random.Next(100),
+                IsAvailabe = true,
+                Stock = this.random.Next(100),
+                User = user
+            });
+        }
     }
 }
